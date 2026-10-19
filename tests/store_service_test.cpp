@@ -165,7 +165,7 @@ Response fetch(const std::string &url, Purpose purpose, std::size_t, std::string
     return result;
 }
 Response get(const std::string &, Purpose, std::uint64_t, const Sink &, Control &,
-             const std::string &)
+             const std::string &, std::string_view)
 {
     Response failure;
     failure.error = "The test has no network";

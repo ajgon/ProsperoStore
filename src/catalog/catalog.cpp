@@ -324,11 +324,21 @@ bool normalize_api(std::string_view value, std::string &out)
     out = std::move(candidate);
     return true;
 }
-bool artifact_url(std::string_view url, bool redirected)
+bool artifact_url(std::string_view url, bool redirected, std::string_view custom)
 {
     const auto domain = host(url);
-    return domain == "github.com" ||
-           (redirected && domain == "release-assets.githubusercontent.com");
+    if (domain == "github.com" || (redirected && domain == "release-assets.githubusercontent.com"))
+        return true;
+    // The user chose the custom catalog, so its host is trusted with the files it lists.
+    const auto own = host(custom);
+    return !domain.empty() && !own.empty() && !official_url(custom) && api_url(custom) &&
+           std::equal(domain.begin(), domain.end(), own.begin(), own.end(),
+                      [](char a, char b)
+                      {
+                          const auto lower = [](char c)
+                          { return c >= 'A' && c <= 'Z' ? static_cast<char>(c + 32) : c; };
+                          return lower(a) == lower(b);
+                      });
 }
 
 std::string sha256(std::string_view bytes)

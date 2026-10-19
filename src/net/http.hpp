@@ -49,8 +49,9 @@ using Sink = std::function<bool(std::string_view)>;
 bool read_headers(std::string_view headers, Response &out);
 Response request_once(const std::string &url, std::uint64_t limit, const Sink &sink,
                       Control &control, const std::string &etag);
+// custom: the custom catalog's address, whose host may serve artifacts (catalog::artifact_url).
 Response get(const std::string &url, Purpose purpose, std::uint64_t limit, const Sink &sink,
-             Control &control, const std::string &etag = {});
+             Control &control, const std::string &etag = {}, std::string_view custom = {});
 Response fetch(const std::string &url, Purpose purpose, std::size_t limit, std::string &body,
                Control &control, const std::string &etag = {});
 } // namespace store::net

@@ -508,7 +508,7 @@ Result apply(const Environment &environment, const Request &request, net::Contro
         return fail("This app can't be installed yet");
     if (entry.format != "zip")
         return fail("Can't be installed by this version of ProsperoStore");
-    if (!catalog::artifact_url(entry.artifact))
+    if (!catalog::artifact_url(entry.artifact, false, environment.catalog))
         return fail("The download address isn't allowed");
     if (!catalog::hex_bytes(entry.digest, digest) || entry.size > catalog::kArtifactLimit)
         return fail("The listing can't be installed safely");

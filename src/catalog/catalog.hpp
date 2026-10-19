@@ -37,7 +37,9 @@ bool official_url(std::string_view url);
 inline constexpr const char *kDefaultApi = "https://prosperostore.net/api/v1/";
 // Empty input restores the official API; otherwise require an HTTPS directory URL.
 bool normalize_api(std::string_view value, std::string &out);
-bool artifact_url(std::string_view url, bool redirected = false);
+// A release file's address: github.com, GitHub's release file host after a redirect, or the
+// host of the custom catalog the user set (custom; ignored when it is an official address).
+bool artifact_url(std::string_view url, bool redirected = false, std::string_view custom = {});
 // Where a developer can be found, for the code on their page: the catalog's donation address
 // (support is set), else their own page, else the owner of the source repository on a known
 // host. Empty when none of them is an HTTPS address.

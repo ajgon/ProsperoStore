@@ -72,6 +72,38 @@ int main()
     assert(!fetch("https://dev.example/feed/", Purpose::catalog, 100, body, control).ok());
     assert(calls.size() == 1);
     calls.clear();
+    // An artifact on the custom catalog's host, redirected within it; nowhere else.
+    const std::string own = "https://store.example/api/v1/";
+    const Sink collect = [&](std::string_view chunk)
+    {
+        body.append(chunk);
+        return true;
+    };
+    body.clear();
+    responses = {reply(302, "/files/app.zip"), reply(200)};
+    assert(get("https://store.example/app.zip", Purpose::artifact, 100, collect, control, {}, own)
+               .ok() &&
+           body == "body" && calls.back() == "https://store.example/files/app.zip");
+    calls.clear();
+    responses = {reply(302, "https://evil.example/payload")};
+    assert(!get("https://store.example/app.zip", Purpose::artifact, 100, collect, control, {}, own)
+                .ok() &&
+           calls.size() == 1);
+    calls.clear();
+    assert(!get("https://store.example/app.zip", Purpose::artifact, 100, collect, control).ok() &&
+           calls.empty());
+    // Without a custom catalog (the official address), GitHub's redirect is still followed and
+    // nothing else is.
+    const std::string official = "https://prosperostore.net/api/v1/";
+    body.clear();
+    responses = {reply(302, "https://release-assets.githubusercontent.com/asset"), reply(200)};
+    assert(get(url, Purpose::artifact, 100, collect, control, {}, official).ok() &&
+           body == "body" && calls.size() == 2);
+    calls.clear();
+    responses = {reply(302, "https://prosperostore.net/payload")};
+    assert(!get(url, Purpose::artifact, 100, collect, control, {}, official).ok() &&
+           calls.size() == 1);
+    calls.clear();
     control.cancelled.store(true);
     assert(!fetch(url, Purpose::artifact, 100, body, control).ok() && calls.empty());
 }

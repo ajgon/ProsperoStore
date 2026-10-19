@@ -246,9 +246,11 @@ Custom feeds must implement the [catalog API](https://github.com/darkxex/ps5-hom
 schema-3 `manifest.json`, `index.json`, `versions.json`, and `apps/<TITLEID>.json`.
 The manifest must list the SHA-256 of each API JSON file. `manifest.sig` is required
 only while signature verification is on. API-file hashes, artifact hashes, ZIP
-validation, HTTPS certificate checks, and the existing GitHub release download
-policy remain enforced. Plain HTTP, self-signed TLS certificates, arbitrary JSON
-lists, and downloads from non-GitHub artifact hosts are not supported.
+validation and HTTPS certificate checks remain enforced. A custom feed's
+`artifact_url` may point at GitHub releases or at the custom catalog's own host
+(the same host and port as the Custom catalog URL, redirects included). Plain
+HTTP, self-signed TLS certificates, arbitrary JSON lists, and downloads from any
+other host are not supported.
 
 Each API URL and signature mode has its own catalog cache. Re-enabling verification
 never reuses an unchecked catalog; the official signed catalog retains its saved

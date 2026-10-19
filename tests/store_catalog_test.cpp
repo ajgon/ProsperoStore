@@ -54,6 +54,29 @@ int main()
          {"http://github.com/a", "https://github.com.evil/a", "https://github.com@evil/a",
           "https://evil/github.com/a", "https://github.com:443/a", "https://github.com/\r\na"})
         assert(!artifact_url(url, true));
+    // The custom catalog's host serves its own files; GitHub stays allowed beside it.
+    const std::string_view own = "https://store.example:8443/api/v1/";
+    assert(artifact_url("https://store.example:8443/files/a.zip", false, own));
+    assert(artifact_url("https://STORE.example:8443/a.zip", true, own));
+    assert(artifact_url("https://github.com/owner/repo/releases/download/v1/a.zip", false, own));
+    for (const char *url :
+         {"https://store.example/a.zip", "https://store.example:8443.evil/a",
+          "https://evil.store.example:8443/a", "https://store.example:8443@evil/a",
+          "http://store.example:8443/a", "https://store.example:8443"})
+        assert(!artifact_url(url, true, own));
+    assert(!artifact_url("https://evil.example/a", true, "http://evil.example/"));
+    // No custom catalog in use (none, or the official address): GitHub's rules alone.
+    for (const std::string_view none : {std::string_view{}, std::string_view(kDefaultApi)})
+    {
+        assert(
+            artifact_url("https://github.com/owner/repo/releases/download/v1/a.zip", false, none));
+        assert(artifact_url("https://release-assets.githubusercontent.com/a", true, none));
+        assert(!artifact_url("https://release-assets.githubusercontent.com/a", false, none));
+        assert(!artifact_url("https://store.example:8443/files/a.zip", true, none));
+    }
+    // The official catalog's places never serve release files.
+    assert(!artifact_url("https://prosperostore.net/a.zip", true, kDefaultApi));
+    assert(!artifact_url("https://darkxex.github.io/ps5-homebrew-catalog/a.zip", true, kApiMirror));
     const std::string index =
         R"({"schema":3,"apps":[{"titleid":"PPSA99000","name":"ProsperoStore","kind":"app","status":"coming_soon","content_version":null,"unknown":{"future":true}}]})";
     std::vector<Entry> entries;

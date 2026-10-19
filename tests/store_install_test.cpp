@@ -479,6 +479,24 @@ void check_transactions(const fs::path &base)
     changed = request;
     changed.entry.artifact = "https://release-assets.githubusercontent.com/x.zip";
     assert(refused(changed)); // Only reachable by redirect from github.com.
+    // The custom catalog the user set may serve its files from its own host.
+    f.environment.catalog = "https://Example.com/store/api/v1/";
+    changed = request;
+    changed.entry.artifact = "https://example.com/files/" + kId + ".zip";
+    f.requests = 0;
+    assert(f.apply(changed).ok && f.requests == 1);
+    assert(f.uninstall().ok && !fs::exists(f.target()) && f.settled());
+    changed.entry.artifact = "https://cdn.example.com/" + kId + ".zip";
+    assert(refused(changed));
+    f.environment.catalog = catalog::kDefaultApi;
+    changed.entry.artifact = "https://prosperostore.net/" + kId + ".zip";
+    assert(refused(changed)); // The official catalog lists files on GitHub only.
+    changed.entry.artifact = "https://example.com/files/" + kId + ".zip";
+    assert(refused(changed)); // No custom catalog in use: its host is no longer allowed.
+    f.requests = 0;
+    assert(f.apply(request).ok && f.requests == 1); // GitHub still is.
+    assert(f.uninstall().ok && !fs::exists(f.target()) && f.settled());
+    f.environment.catalog.clear();
     changed = request;
     changed.entry.digest = "abc";
     assert(refused(changed));

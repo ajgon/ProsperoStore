@@ -356,8 +356,9 @@ void Service::run_installer()
         environment.root = root_;
         environment.self = "PPSA99000";
         environment.self_version = version_;
-        environment.fetch = [](const std::string &url, std::uint64_t limit, const net::Sink &sink,
-                               net::Control &control)
+        environment.catalog = catalog_url;
+        environment.fetch = [custom = catalog_url](const std::string &url, std::uint64_t limit,
+                                                   const net::Sink &sink, net::Control &control)
         {
 #ifdef STORE_DEVELOPMENT
             // A scripted self-update reads its archive from the console, since
@@ -391,7 +392,7 @@ void Service::run_installer()
                 return response;
             }
 #endif
-            return net::get(url, net::Purpose::artifact, limit, sink, control);
+            return net::get(url, net::Purpose::artifact, limit, sink, control, {}, custom);
         };
         environment.running = [](const std::string &id) { return system::title_running(id); };
 #ifdef STORE_FILE_WORKER

@@ -55,7 +55,7 @@ bool read_headers(std::string_view headers, Response &out)
 }
 
 Response get(const std::string &url, Purpose purpose, std::uint64_t limit, const Sink &sink,
-             Control &control, const std::string &etag)
+             Control &control, const std::string &etag, std::string_view custom)
 {
     Response response;
     if (limit == 0 || limit > catalog::kArtifactLimit || etag.size() > 512 ||
@@ -67,9 +67,10 @@ Response get(const std::string &url, Purpose purpose, std::uint64_t limit, const
     std::string current = url;
     for (int redirects = 0; redirects <= 5; ++redirects)
     {
-        if (!(purpose == Purpose::catalog    ? catalog::api_url(current)
-              : purpose == Purpose::comments ? social::data_url(current)
-                                             : catalog::artifact_url(current, redirects > 0)))
+        if (!(purpose == Purpose::catalog ? catalog::api_url(current)
+              : purpose == Purpose::comments
+                  ? social::data_url(current)
+                  : catalog::artifact_url(current, redirects > 0, custom)))
         {
             response.error = "The download address is not allowed";
             return response;
