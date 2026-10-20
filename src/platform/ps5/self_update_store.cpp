@@ -17,12 +17,13 @@ namespace store::system
 namespace
 {
 // The kit's view of the console, built on the store's own pieces: its libcurl
-// transport (with its fixes and GitHub-only address rules) for the download and
-// its loader connection for the helper. The catalog check is the store's own,
-// so the kit's fetch, signature and sequence hooks are never used.
+// transport (with its fixes and address rules: GitHub, or the custom catalog's
+// own host) for the download and its loader connection for the helper. The catalog check is the
+// store's own, so the kit's fetch, signature and sequence hooks are never used.
 struct Context
 {
     net::Control *control = nullptr;
+    std::string catalog; // The custom catalog the user set, if any.
 };
 
 int no_fetch(void *, const char *, char *, std::size_t, std::size_t *, int *)
@@ -49,7 +50,8 @@ std::uint64_t now_ms(void *)
 int download(void *user, const char *url, std::uint64_t limit, self_update_sink sink,
              void *sink_user)
 {
-    auto &control = *static_cast<Context *>(user)->control;
+    const auto &context = *static_cast<Context *>(user);
+    auto &control = *context.control;
     const std::string address = url;
 #ifdef STORE_DEVELOPMENT
     // A scripted self-update reads its archive from the console, since no newer
@@ -84,7 +86,7 @@ int download(void *user, const char *url, std::uint64_t limit, self_update_sink 
 #endif
     const auto response = net::get(
         address, net::Purpose::artifact, limit, [&](std::string_view piece)
-        { return sink(sink_user, piece.data(), piece.size()) == 1; }, control);
+        { return sink(sink_user, piece.data(), piece.size()) == 1; }, control, {}, context.catalog);
     return response.ok() && response.status == 200 ? 0 : -1;
 }
 
@@ -122,9 +124,10 @@ template <std::size_t N> void copy(char (&out)[N], const std::string &text)
 } // namespace
 
 bool update_self(const catalog::Entry &entry, const std::string &installed,
-                 install::Progress &progress, net::Control &control, std::string &error)
+                 const std::string &catalog, install::Progress &progress, net::Control &control,
+                 std::string &error)
 {
-    Context context{&control};
+    Context context{&control, catalog};
     const self_update_platform platform{no_fetch,    download, no_verify, open_helper,
                                         no_sequence, no_save,  now_ms,    &context};
     self_update_offer offer{};

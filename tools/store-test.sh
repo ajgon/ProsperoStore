@@ -161,6 +161,15 @@ clang++ -std=c++20 "${flags[@]}" -Wall -Wextra -Wpedantic -Werror -I"$root/src" 
     "$root/src/system/running.cpp" "$root/src/install/worker.cpp" \
     "${objects[@]}" "${miniz[@]}" "$build/update_check.o" -pthread -o "$build/service-test"
 ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$build/service-test"
+# The store's own update: the console's path with the boilerplate kit, as the app compiles them.
+clang -std=c11 "${flags[@]}" -I"$root/examples/self-update" -I"$root/examples/update-check" \
+    -c "$root/src/platform/ps5/self_update_kit.c" -o "$build/self_update_kit.o"
+clang++ -std=c++20 "${flags[@]}" -Wall -Wextra -Wpedantic -Werror -I"$root/src" \
+    -I"$root/examples/self-update" \
+    "$root/tests/store_self_update_test.cpp" "$root/src/platform/ps5/self_update_store.cpp" \
+    "$root/src/net/http.cpp" "$root/src/catalog/catalog.cpp" "${objects[@]}" \
+    "$build/self_update_kit.o" "$build/update_check.o" -pthread -o "$build/self-update-test"
+ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$build/self-update-test"
 clang++ -std=c++20 "${flags[@]}" -Wall -Wextra -Wpedantic -Werror -I"$root/src" \
     "$root/tests/store_curl_test.cpp" "$root/host/http.cpp" "$root/src/net/curl_request.cpp" \
     "$root/src/net/http.cpp" "$root/src/catalog/catalog.cpp" "${objects[@]}" \

@@ -554,8 +554,9 @@ void Service::run_installer()
             // The store itself: the kit's helper swaps the files of its folder
             // once it has closed, so the next start runs the new version.
             result.operation = "self-update";
-            result.ok = system::update_self(job.entry, environment.self_version, progress_,
-                                            job_control_, result.error);
+            result.ok =
+                system::update_self(job.entry, environment.self_version, environment.catalog,
+                                    progress_, job_control_, result.error);
             result.version = job.entry.content_version;
         }
 #endif

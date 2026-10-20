@@ -15,7 +15,9 @@ namespace store::system
 // When the helper is ready the go-ahead is given and true is returned: the store
 // must then close, and the helper swaps the files of the store's folder in place
 // (the folder ShadowMountPlus mounted stays) and posts a system notification.
+// catalog is the custom catalog the user set, if any: its host may serve the archive too.
 // False with error when nothing changed (the archive stays where it was).
 bool update_self(const catalog::Entry &entry, const std::string &installed,
-                 install::Progress &progress, net::Control &control, std::string &error);
+                 const std::string &catalog, install::Progress &progress, net::Control &control,
+                 std::string &error);
 } // namespace store::system
