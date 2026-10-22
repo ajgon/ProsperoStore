@@ -91,9 +91,10 @@ struct Settings
     // Records what the store does at each step, for a report: shown in About, written to
     // /data/prosperostore/debug-trace.txt (or a USB drive) and the kernel log.
     bool debug_log = false;
-    // The custom catalogs: each a GitHub repository laid out like ps5-homebrew-catalog, named
-    // "owner/repository" (catalog::github_catalog), whose GitHub Pages site serves its API. In
-    // the order they were added: where two list the same app, the earlier one's is shown.
+    // The custom catalogs, each named as catalog::custom_catalog keeps it: a GitHub repository
+    // laid out like ps5-homebrew-catalog ("owner/repository"), whose GitHub Pages site serves its
+    // API, or the full HTTPS address of a catalog's API directory. In the order they were added:
+    // where two list the same app, the earlier one's is shown.
     std::vector<std::string> catalogs;
     static constexpr std::size_t kMaxCatalogs = 8; // each one is read when the store opens
     // The two sources, each switched on or off by itself in Development options. Both on:
@@ -105,7 +106,7 @@ struct Settings
     {
         return use_custom && !catalogs.empty();
     }
-    // The API directory of each custom catalog, in order (catalog::github_catalog_api).
+    // The API directory of each custom catalog, in order (catalog::custom_catalog_api).
     std::vector<std::string> catalog_urls() const;
     bool verify_signatures = true;
     std::string news_seen; // the newest news item that was read
@@ -221,8 +222,8 @@ class Screen
         return settings_;
     }
     bool settings_changed = false; // the frame loop saves them and clears this
-    // The frame loop opens the keyboard for a catalog's name ("owner/repository") and hands
-    // what was typed to add_catalog.
+    // The frame loop opens the keyboard for a catalog ("owner/repository" or an address) and
+    // hands what was typed to add_catalog.
     bool pending_catalog_add = false;
     void add_catalog(std::string_view typed);
     // The keyboard was closed without an answer: custom catalogs that were just switched

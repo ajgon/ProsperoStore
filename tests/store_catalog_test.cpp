@@ -8,6 +8,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <utility>
 
 using namespace store::catalog;
 
@@ -78,6 +79,48 @@ int main()
           "https://janedoe.github.io/a/b/api/v1/", "http://janedoe.github.io/catalog/api/v1/",
           "https://github.io/catalog/api/v1/", "https://janedoe.github.io.evil/catalog/api/v1/"})
         assert(github_catalog_of(url).empty());
+    // A custom catalog as the user names it: a repository, or any catalog's full address. What
+    // is kept reads back the same from its own API directory.
+    const std::pair<std::string_view, std::string_view> named[] = {
+        {"janedoe/ps5-homebrew-catalog", "janedoe/ps5-homebrew-catalog"},
+        {"https://github.com/JaneDoe/ps5-homebrew-catalog", "janedoe/ps5-homebrew-catalog"},
+        {" https://janedoe.github.io/ps5-homebrew-catalog/api/v1/ ",
+         "janedoe/ps5-homebrew-catalog"},
+        {"https://store.example/api/v1/", "https://store.example/api/v1/"},
+        {"HTTPS://store.example:8443/feed", "https://store.example:8443/feed/"},
+        {"https://store.example", "https://store.example/"},
+        {"https://store.example/catalog", "https://store.example/catalog/"},
+        {"https://gitlab.com/janedoe/catalog", "https://gitlab.com/janedoe/catalog/"}};
+    for (const auto &[typed, kept] : named)
+    {
+        assert(custom_catalog(typed, name) && name == kept);
+        assert(custom_catalog(custom_catalog_api(name), name) && name == kept);
+    }
+    assert(custom_catalog_api("janedoe/ps5-homebrew-catalog") ==
+           "https://janedoe.github.io/ps5-homebrew-catalog/api/v1/");
+    assert(custom_catalog_api("https://store.example/api/v1/") == "https://store.example/api/v1/");
+    assert(custom_catalog_label("janedoe/ps5-homebrew-catalog") == "janedoe/ps5-homebrew-catalog");
+    assert(custom_catalog_label("https://store.example:8443/feed/") == "store.example:8443");
+    name = "unchanged";
+    for (const std::string &bad :
+         {std::string(), std::string("janedoe"), std::string("store.example/api/v1/"),
+          std::string("http://store.example/api/v1/"), std::string("https://"),
+          std::string("https:///api/v1/"), std::string("https://store.example/api/v1/?x=1"),
+          std::string("https://store.example/api/v1/#top"), std::string("https://bad host/api/"),
+          std::string("https://store.example/a\nverify_signatures=0"),
+          "https://store.example/" + std::string(600, 'a')})
+    {
+        assert(!custom_catalog(bad, name));
+        assert(name == "unchanged");
+    }
+    // The official catalog's places are read too: official_url tells them apart, for the
+    // settings and the keyboard to refuse.
+    for (const std::string_view official :
+         {std::string_view("darkxex/ps5-homebrew-catalog"), std::string_view(kDefaultApi),
+          std::string_view("https://darkxex.github.io/ps5-homebrew-catalog/api/v1/")})
+        assert(custom_catalog(official, name) && official_url(custom_catalog_api(name)));
+    assert(custom_catalog("https://store.example/api/v1/", name) &&
+           !official_url(custom_catalog_api(name)));
     // The mirror is one path on a shared host: nothing else on that host is the catalog.
     assert(official_url("https://darkxex.github.io/ps5-homebrew-catalog/api/v1/index.json"));
     assert(official_url("https://darkxex.github.io/ps5-homebrew-catalog/api/v1/icons/"

@@ -227,16 +227,20 @@ it is on, the store starts a little slower.
 Settings) has two switches, one for each source:
 
 - **Official catalog** - prosperostore.net, always signature-checked. On by default.
-- **Custom catalogs** - your own catalogs, kept on GitHub. Switching it on asks for the first one
-  when none is listed.
+- **Custom catalogs** - your own catalogs, on GitHub or any HTTPS host. Switching it on asks for
+  the first one when none is listed.
 
-A custom catalog is a GitHub repository laid out like
-[ps5-homebrew-catalog](https://github.com/darkxex/ps5-homebrew-catalog), whose GitHub Pages site
-publishes the store API. **Add a GitHub catalog** asks for its name as `owner/repository` (the
-repository's page address, `https://github.com/owner/repository`, is accepted too); the store
-reads it from `https://owner.github.io/repository/api/v1/`. GitHub is the only host in this
-release. Up to eight catalogs can be listed; each has its own row with its address and a
-**Remove** button, and each is read when the store opens.
+**Add a catalog** takes either of two forms:
+
+- `owner/repository` - a GitHub repository laid out like
+  [ps5-homebrew-catalog](https://github.com/darkxex/ps5-homebrew-catalog), whose GitHub Pages site
+  publishes the store API. The repository's page address, `https://github.com/owner/repository`,
+  is accepted too; the store reads it from `https://owner.github.io/repository/api/v1/`.
+- The full HTTPS address of a catalog's API directory, on any host, for example
+  `https://example.com/api/v1/`. A GitHub Pages address of that shape is kept as its repository.
+
+Up to eight catalogs can be listed; each has its own row with its name (the repository, or the
+address's host) and its address, and a **Remove** button, and each is read when the store opens.
 
 With both switches on, the custom catalogs' apps are added to prosperostore.net's, in the order
 the catalogs were added, and each app's page names the catalog it came from. Where two catalogs
@@ -248,8 +252,8 @@ only be switched off while a custom catalog is in use.
 
 **Restore official catalog** goes back to prosperostore.net alone with signature checks on; the
 catalogs stay listed, switched off. Changes are saved at once and apply when you close and reopen
-ProsperoStore. A single `Custom catalog URL` saved by an earlier version is carried over when it
-was a repository's GitHub Pages address, and dropped otherwise.
+ProsperoStore. A single `Custom catalog URL` saved by an earlier version is carried over as a
+custom catalog.
 
 **Verify custom catalog signatures** is on by default and uses the official catalog's built-in
 public keys, so it suits a copy of the signed official feed. For an independently published
@@ -258,14 +262,17 @@ catalog you can turn it off after confirming the warning; the store then labels 
 downloads, but an unchecked publisher controls both the download address and its expected hash.
 
 A custom catalog must publish the [catalog API](https://github.com/darkxex/ps5-homebrew-catalog/blob/main/docs/api.md)
-under `api/v1/` of its GitHub Pages site: schema-3 `manifest.json`, `index.json`,
+in its API directory (`api/v1/` of a repository's GitHub Pages site): schema-3 `manifest.json`, `index.json`,
 `versions.json`, and `apps/<TITLEID>.json`. A fork of ps5-homebrew-catalog builds it with its
 own workflow; build it with `--base /<repository>/` so the files name the Pages address they are
 served from. The manifest must list the SHA-256 of each API JSON file. `manifest.sig` is
 required only while signature verification is on. API-file hashes, artifact hashes, ZIP
-validation and HTTPS certificate checks remain enforced. A custom catalog's `artifact_url` must
-point at GitHub releases. Plain HTTP, self-signed TLS certificates, arbitrary JSON lists, and
-downloads from any other host are not supported.
+validation and HTTPS certificate checks remain enforced. A custom catalog's `artifact_url` may
+point at GitHub releases or at that catalog's own host (the same host and port as its API
+address, redirects included), never at another catalog's. That includes ProsperoStore's own
+update when it comes from a custom catalog: with the official catalog on, its listing of
+ProsperoStore is the one used. Plain HTTP, self-signed TLS certificates, arbitrary JSON lists,
+and downloads from any other host are not supported.
 
 Each API URL and signature mode has its own catalog cache. Re-enabling verification
 never reuses an unchecked catalog; the official signed catalog retains its saved

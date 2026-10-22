@@ -3767,17 +3767,13 @@ std::vector<std::string> Settings::catalog_urls() const
 {
     std::vector<std::string> urls;
     for (const auto &name : catalogs)
-        urls.push_back(catalog::github_catalog_api(name));
+        urls.push_back(catalog::custom_catalog_api(name));
     return urls;
 }
 
 Settings parse_settings(std::string_view text)
 {
     Settings settings;
-    // The official catalog's own repository is the Official catalog switch, never a
-    // custom catalog: the same rule Screen::add_catalog applies.
-    const std::string official_repo =
-        catalog::github_catalog_of(std::string(catalog::kApiMirror) + "api/v1/");
     while (!text.empty())
     {
         const auto end = text.find('\n');
@@ -3801,14 +3797,12 @@ Settings parse_settings(std::string_view text)
             settings.debug_log = value == "1";
         else if (key == "catalog" || key == "catalog_url")
         {
-            // catalog_url is the one address older versions kept: it is carried over when it
-            // was a repository's GitHub Pages site, and forgotten otherwise.
-            std::string name, url;
-            const bool known = key == "catalog"
-                                   ? catalog::github_catalog(value, name)
-                                   : catalog::normalize_api(value, url) &&
-                                         !(name = catalog::github_catalog_of(url)).empty();
-            if (known && name != official_repo &&
+            // catalog_url is the one address older versions kept, carried over as a catalog.
+            // The official catalog's own places are its switch, never a custom catalog: the
+            // same rules Screen::add_catalog applies.
+            std::string name;
+            if (catalog::custom_catalog(value, name) &&
+                !catalog::official_url(catalog::custom_catalog_api(name)) &&
                 settings.catalogs.size() < Settings::kMaxCatalogs &&
                 std::find(settings.catalogs.begin(), settings.catalogs.end(), name) ==
                     settings.catalogs.end())
@@ -3862,24 +3856,26 @@ void Screen::add_catalog(std::string_view typed)
     if (typed.empty())
         return catalog_add_cancelled();
     std::string name;
-    if (!catalog::github_catalog(typed, name))
+    if (!catalog::custom_catalog(typed, name))
     {
-        notify(trs("Not a GitHub repository"),
-               trs("Type it as owner/repository, for example darkxex/ps5-homebrew-catalog. "
-                   "Nothing was changed."));
+        notify(trs("Not a catalog"),
+               trs("Type owner/repository, for example darkxex/ps5-homebrew-catalog, or a "
+                   "catalog's full https:// address. Nothing was changed."));
         return catalog_add_cancelled();
     }
-    if (name == catalog::github_catalog_of(std::string(catalog::kApiMirror) + "api/v1/"))
+    if (catalog::official_url(catalog::custom_catalog_api(name)))
     {
-        // The official catalog's own repository is the Official catalog switch.
+        // The official catalog's own places (its site, its mirror's repository) are the
+        // Official catalog switch.
         notify(trs("That is the official catalog"),
-               trs("prosperostore.net has its own switch. Add a different repository."));
+               trs("prosperostore.net has its own switch. Add a different catalog."));
         return catalog_add_cancelled();
     }
     auto &list = settings_.catalogs;
+    const auto label = catalog::custom_catalog_label(name);
     if (std::find(list.begin(), list.end(), name) != list.end())
     {
-        notify(trs("Already added"), trf("{0} is in the list already.", {name}));
+        notify(trs("Already added"), trf("{0} is in the list already.", {label}));
         return catalog_add_cancelled();
     }
     if (list.size() >= Settings::kMaxCatalogs)
@@ -3892,7 +3888,7 @@ void Screen::add_catalog(std::string_view typed)
     list.push_back(name);
     settings_.use_custom = true;
     settings_changed = true;
-    notify(trs("Catalog added"), trf("{0} - close and reopen the store.", {name}));
+    notify(trs("Catalog added"), trf("{0} - close and reopen the store.", {label}));
 }
 
 std::string Screen::sources_label(bool about) const
@@ -3901,7 +3897,7 @@ std::string Screen::sources_label(bool about) const
         return "prosperostore.net";
     std::string names;
     for (const auto &name : active_catalogs_)
-        names += (names.empty() ? "" : ", ") + name;
+        names += (names.empty() ? "" : ", ") + catalog::custom_catalog_label(name);
     if (about)
         return active_with_official_ ? trf("prosperostore.net and {0}", {names}) : names;
     // The top bar has room for a few words: one name, or how many catalogs there are.
@@ -3986,7 +3982,7 @@ namespace
 // The settings in the order Settings lists them, by number (the rows of draw_panel). The ones
 // before 5 and Language are the Settings room's rows, with 11 opening the Catalogs room; the
 // Catalogs room holds 5 to 9, with one row per custom catalog (kCatalogSetting + its place)
-// between "Add a GitHub catalog" (7) and the signature switch (8).
+// between "Add a catalog" (7) and the signature switch (8).
 constexpr int kListedSettings[] = {0, 1, 14, 2, 3, 4, 13, 12, 10, 11};
 constexpr int kListedCount = static_cast<int>(sizeof(kListedSettings) / sizeof(int));
 constexpr int kCatalogSetting = 20;
@@ -4093,8 +4089,9 @@ void Screen::write_about()
     if (active_with_official_)
         blocks.push_back(Block::key_value(trs("Active API URL"), catalog::kDefaultApi));
     for (const auto &name : active_catalogs_)
-        blocks.push_back(Block::key_value(trs("Custom catalog"),
-                                          name + " - " + catalog::github_catalog_api(name)));
+        blocks.push_back(
+            Block::key_value(trs("Custom catalog"), catalog::custom_catalog_label(name) + " - " +
+                                                        catalog::custom_catalog_api(name)));
     blocks.push_back(Block::key_value(trs("New apps go to"), settings_.location));
     blocks.push_back(Block::heading(trs("How it keeps installs safe"), 3));
     blocks.push_back(Block::bullet(
@@ -4211,7 +4208,7 @@ void Screen::update_panel(const InputFrame &input, ui::Feedback &feedback)
                       trs("Remove this catalog?"),
                       trf("{0} will no longer be read. Its apps leave the shelves when the store "
                           "next opens; what is installed stays.",
-                          {ask_id_}),
+                          {catalog::custom_catalog_label(ask_id_)}),
                       {{trs("Cancel")}, {trs("Remove"), ui::ButtonKind::primary}}},
                      feedback);
         return;
@@ -4663,12 +4660,10 @@ void Screen::draw_panel(const ui::Fonts &fonts, std::uint32_t glass)
             {4, tr("Official catalog"),
              tr("prosperostore.net, signed. With both on, its apps win a clash."), 1, "",
              settings_.use_official},
-            {4, tr("Custom catalogs"),
-             tr("Your own catalogs from GitHub. With both on, their apps are added."), 1, "",
-             settings_.use_custom},
-            {4, tr("Add a GitHub catalog"),
-             tr("Type owner/repository: a repository laid out like ps5-homebrew-catalog."), 2,
-             trs("Add"), false},
+            {4, tr("Custom catalogs"), tr("Your own catalogs. With both on, their apps are added."),
+             1, "", settings_.use_custom},
+            {4, tr("Add a catalog"), tr("Type owner/repository, or a catalog's https:// address."),
+             2, trs("Add"), false},
             {4, tr("Verify custom catalog signatures"),
              tr("The official catalog is always checked. Applies next launch."), 1, "",
              settings_.verify_signatures},
@@ -4680,7 +4675,7 @@ void Screen::draw_panel(const ui::Fonts &fonts, std::uint32_t glass)
              : newer         ? trf("Version {0} available", {self->available_version})
                      : trf(self ? "Version {0}, up to date" : "Version {0}", {self_version_}),
              newer || restart_needed_},
-            {11, tr("Catalogs"), tr("prosperostore.net and your GitHub catalogs."), 2, trs("Open"),
+            {11, tr("Catalogs"), tr("prosperostore.net and your custom catalogs."), 2, trs("Open"),
              false},
             {4, tr("Debug log"),
              tr("Records every step for a report: see About, or debug-trace.txt."), 1, "",
@@ -4696,9 +4691,8 @@ void Screen::draw_panel(const ui::Fonts &fonts, std::uint32_t glass)
         if (catalogs_room)
         {
             // What the room is for, in a line above its rows.
-            ui::text(list, fonts.regular,
-                     tr("Add catalogs kept on GitHub. Changes apply next launch."), px, y + 22.0f,
-                     21, kInk.with_alpha(0.6f));
+            ui::text(list, fonts.regular, tr("Add your own catalogs. Changes apply next launch."),
+                     px, y + 22.0f, 21, kInk.with_alpha(0.6f));
             y += 48.0f;
         }
         const int catalogs = static_cast<int>(settings_.catalogs.size());
@@ -4707,23 +4701,17 @@ void Screen::draw_panel(const ui::Fonts &fonts, std::uint32_t glass)
         for (int focus = first; focus < std::min(first + 6, count); ++focus)
         {
             const int setting = setting_at(catalogs_room, focus, catalogs);
-            // A custom catalog's row: its name, its address under it, and Remove. The
-            // address lives here so the row's views have something to point at.
-            const std::string catalog_api =
+            // A custom catalog's row: its short name, its address under it (fitted to the
+            // row), and Remove. Both live here so the row's views have something to point at.
+            const std::string catalog_name =
                 setting >= kCatalogSetting
-                    ? catalog::github_catalog_api(
-                          settings_.catalogs[static_cast<std::size_t>(setting - kCatalogSetting)])
+                    ? settings_.catalogs[static_cast<std::size_t>(setting - kCatalogSetting)]
                     : std::string();
-            const Row catalog_row{
-                4,
-                setting >= kCatalogSetting
-                    ? std::string_view(
-                          settings_.catalogs[static_cast<std::size_t>(setting - kCatalogSetting)])
-                    : std::string_view(),
-                catalog_api,
-                5,
-                trs("Remove"),
-                false};
+            const std::string catalog_label = catalog::custom_catalog_label(catalog_name);
+            const std::string catalog_api = setting >= kCatalogSetting
+                                                ? catalog::custom_catalog_api(catalog_name)
+                                                : std::string();
+            const Row catalog_row{4, catalog_label, catalog_api, 5, trs("Remove"), false};
             const Row &it = setting >= kCatalogSetting ? catalog_row : rows[setting];
             const Rect row{px - 16.0f, y, pw + 32.0f, 108.0f};
             if (focus == setting_focus_)

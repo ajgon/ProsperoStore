@@ -40,7 +40,8 @@ struct Environment
     std::string self_version;
     system::ScanPolicy policy;
     Fetch fetch;
-    // The custom catalog the user set, if any: release files on its host are allowed too.
+    // The custom catalog that lists the app, if any (Entry::catalog_api): release files on its
+    // host are allowed too.
     std::string catalog;
     // 0: not running, 1: running, anything else: unknown. Unset means unknown,
     // and unknown refuses every update and uninstall.

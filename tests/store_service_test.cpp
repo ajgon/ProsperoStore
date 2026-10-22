@@ -200,6 +200,7 @@ static void check_installer()
     mz_zip_writer_end(&archive);
 
     std::atomic<bool> hold{false};
+    std::atomic<unsigned> fetches{0};
     store::install::Environment environment;
     environment.root = (root / "state").string();
     environment.work = (root / "work").string();
@@ -208,6 +209,7 @@ static void check_installer()
     environment.fetch = [&](const std::string &, std::uint64_t, const store::net::Sink &sink,
                             store::net::Control &control)
     {
+        ++fetches;
         store::net::Response response;
         sink(std::string_view(artifact).substr(0, artifact.size() / 2));
         while (hold && !control.cancelled)
@@ -255,9 +257,23 @@ static void check_installer()
     auto done = next(service, store::Update::Kind::job);
     assert(!done.ok && done.entry.id == id && done.message == "Example: cancelled");
     assert(!fs::exists(root / "apps" / id) && !fs::exists(root / "state/journal.json"));
-    // The next request is not cancelled by the previous one's cancel.
+    // A file on a custom catalog's own host comes only from the catalog that lists the app:
+    // nothing is asked for while the record names none, or another one.
     hold = false;
-    ask([&] { return service.request_install(entry, location); });
+    auto custom = entry;
+    custom.artifact = "https://store.example/files/" + id + ".zip";
+    for (const char *api : {"", "https://other.example/api/v1/", store::catalog::kDefaultApi})
+    {
+        custom.catalog_api = api;
+        const unsigned before = fetches;
+        ask([&] { return service.request_install(custom, location); });
+        done = next(service, store::Update::Kind::job);
+        assert(!done.ok && fetches == before && !fs::exists(root / "apps" / id));
+    }
+    // The next request is not cancelled by the previous one's cancel, and the catalog that
+    // lists the app may serve its file.
+    custom.catalog_api = "https://store.example/api/v1/";
+    ask([&] { return service.request_install(custom, location); });
     done = next(service, store::Update::Kind::job);
     assert(done.ok && done.message == "Example installed");
     assert(fs::file_size(root / "apps" / id / "eboot.bin") == program.size());

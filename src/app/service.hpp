@@ -81,8 +81,9 @@ class Service
     // takes its place and the rest add to that.
     struct CustomCatalog
     {
-        std::string api;   // its API directory (catalog::github_catalog_api)
-        std::string label; // its name, "owner/repository", said on its apps' pages
+        std::string api; // its API directory (catalog::custom_catalog_api)
+        std::string
+            label; // its short name (catalog::custom_catalog_label), said on its apps' pages
     };
     std::vector<CustomCatalog> catalogs;
     bool verify_signatures = true; // of the custom catalogs; the official one always is

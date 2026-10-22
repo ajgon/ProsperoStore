@@ -290,7 +290,8 @@ int main()
         service.catalogs.clear();
         if (custom)
             for (const auto &name : chosen.catalogs)
-                service.catalogs.push_back({store::catalog::github_catalog_api(name), name});
+                service.catalogs.push_back({store::catalog::custom_catalog_api(name),
+                                            store::catalog::custom_catalog_label(name)});
         service.verify_signatures = custom ? chosen.verify_signatures : true;
         service.with_official = !custom || chosen.use_official;
     }
@@ -900,9 +901,9 @@ int main()
             screen.pending_catalog_add = false;
             keyboard_active =
                 keyboard_catalog
-                    ? keyboard.open(store::i18n::trs("Add a GitHub catalog"),
-                                    store::i18n::trs("owner/repository"), std::string(), 160,
-                                    ps5::Ime::Enter::go)
+                    ? keyboard.open(store::i18n::trs("Add a catalog"),
+                                    store::i18n::trs("owner/repository or https://..."),
+                                    std::string(), 512, ps5::Ime::Enter::go)
                     : keyboard.open(store::i18n::trs("Search ProsperoStore"),
                                     store::i18n::trs("App name or developer"), screen.query());
             sys::log("[STORE] keyboard open=%d", keyboard_active ? 1 : 0);

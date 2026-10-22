@@ -48,8 +48,18 @@ std::string github_catalog_api(std::string_view shorthand);
 // The reverse, for a saved address: "owner/repository" when the URL is a repository's GitHub
 // Pages API directory, empty otherwise.
 std::string github_catalog_of(std::string_view api);
+// A custom catalog as the user names it: a GitHub repository (github_catalog, also typed as its
+// github.com page), or the full HTTPS address of any catalog's API directory (normalize_api).
+// out is "owner/repository" for a repository, and for an address that is one's GitHub Pages
+// API directory; the normalized address otherwise. False, and out untouched, for anything else.
+// The official catalog's places are accepted here: official_url(custom_catalog_api(out)) says so.
+bool custom_catalog(std::string_view typed, std::string &out);
+// The API directory of a catalog named by custom_catalog.
+std::string custom_catalog_api(std::string_view name);
+// What the store shows for it where room is short: the repository's name, or the address's host.
+std::string custom_catalog_label(std::string_view name);
 // A release file's address: github.com, GitHub's release file host after a redirect, or the
-// host of the custom catalog the user set (custom; ignored when it is an official address).
+// host of the custom catalog that lists the app (custom; ignored when it is an official address).
 bool artifact_url(std::string_view url, bool redirected = false, std::string_view custom = {});
 // Where a developer can be found, for the code on their page: the catalog's donation address
 // (support is set), else their own page, else the owner of the source repository on a known
@@ -79,9 +89,13 @@ struct Entry
     std::string author_url, donate_url;
     std::uint64_t size = 0;
     // Not from the catalog's files: set by the store on entries that come from a custom
-    // catalog shown beside the official one, with that catalog's name ("owner/repository").
+    // catalog shown beside the official one, with that catalog's name (custom_catalog_label).
     bool extra = false;
     std::string catalog_label = {};
+    // Not from the catalog's files either: the API directory of the custom catalog the record
+    // came from, beside the official one or in its place; empty for the official catalog. Its
+    // host may serve the app's release file (artifact_url).
+    std::string catalog_api = {};
     // What the catalog's scan of the release file found. Advice, not a guarantee: the scan reads
     // the file and can miss things. Empty strings mean "not known", never "stays".
     std::string sandbox;       // "stays", "leaves", "unclear"

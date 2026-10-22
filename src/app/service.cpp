@@ -358,10 +358,10 @@ void Service::run_installer()
         environment.root = root_;
         environment.self = "PPSA99000";
         environment.self_version = version_;
-        // Release files come from GitHub, whichever catalog lists them: a custom catalog's own
-        // host is not trusted with them (environment.catalog names none).
-        environment.fetch = [](const std::string &url, std::uint64_t limit, const net::Sink &sink,
-                               net::Control &control)
+        // Release files come from GitHub, or from the host of the custom catalog that lists the
+        // app: environment.catalog, set for each job from its record (Entry::catalog_api).
+        environment.fetch = [&environment](const std::string &url, std::uint64_t limit,
+                                           const net::Sink &sink, net::Control &control)
         {
 #ifdef STORE_DEVELOPMENT
             // A scripted self-update reads its archive from the console, since
@@ -395,7 +395,8 @@ void Service::run_installer()
                 return response;
             }
 #endif
-            return net::get(url, net::Purpose::artifact, limit, sink, control);
+            return net::get(url, net::Purpose::artifact, limit, sink, control, {},
+                            environment.catalog);
         };
         environment.running = [](const std::string &id) { return system::title_running(id); };
 #ifdef STORE_FILE_WORKER
@@ -541,6 +542,8 @@ void Service::run_installer()
             hui::sys::sleep_us(50000);
             continue;
         }
+        // The host of the catalog that lists this app may serve its file, and no other's.
+        environment.catalog = job.entry.catalog_api;
         install::Result result;
         if (!broken.empty())
             result.error = broken;
@@ -938,6 +941,11 @@ void Service::run()
                 result.entry.extra = from != nullptr;
                 if (from)
                     result.entry.catalog_label = from->source.label;
+                // The catalog whose host may serve its file: the custom one that lists it, or
+                // the first custom catalog when that one stands in for the official catalog.
+                result.entry.catalog_api = from       ? from->source.api
+                                           : official ? std::string()
+                                                      : catalogs.front().api;
                 result.kind = Update::Kind::detail;
                 if (!result.entry.large_icon.empty())
                 {

@@ -428,6 +428,43 @@ std::string github_catalog_of(std::string_view api)
     return shorthand;
 }
 
+bool custom_catalog(std::string_view typed, std::string &out)
+{
+    const auto blank = [](char c) { return static_cast<unsigned char>(c) <= 32; };
+    while (!typed.empty() && blank(typed.front()))
+        typed.remove_prefix(1);
+    while (!typed.empty() && blank(typed.back()))
+        typed.remove_suffix(1);
+    // An address on any host but github.com is a catalog's own API directory: github_catalog
+    // would read "https://host/name" as a repository called name.
+    constexpr std::string_view kScheme = "https://";
+    if (typed.size() > kScheme.size() && lower_ascii(typed.substr(0, kScheme.size())) == kScheme)
+    {
+        const auto rest = typed.substr(kScheme.size());
+        const auto domain = lower_ascii(rest.substr(0, rest.find('/')));
+        if (domain != "github.com" && domain != "www.github.com")
+        {
+            std::string url;
+            if (!normalize_api(std::string(kScheme) + std::string(rest), url))
+                return false;
+            const auto repository = github_catalog_of(url);
+            out = repository.empty() ? std::move(url) : repository;
+            return true;
+        }
+    }
+    return github_catalog(typed, out);
+}
+
+std::string custom_catalog_api(std::string_view name)
+{
+    return name.starts_with("https://") ? std::string(name) : github_catalog_api(name);
+}
+
+std::string custom_catalog_label(std::string_view name)
+{
+    return name.starts_with("https://") ? std::string(host(name)) : std::string(name);
+}
+
 bool artifact_url(std::string_view url, bool redirected, std::string_view custom)
 {
     const auto domain = host(url);
